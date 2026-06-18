@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>座席替えアプリ</title>
+<style>
+body{font-family:sans-serif;background:#eef4ff;margin:20px}
+.card{background:white;border-radius:16px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-bottom:16px}
+textarea{width:100%;height:160px}
+button{padding:10px 16px;border:none;border-radius:10px;cursor:pointer;margin:4px;background:#cfd8ff;font-weight:bold;transition:0.2s}
+button:hover{background:#b0c2ff}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.seat{background:white;border:2px solid #cfd8ff;border-radius:12px;min-height:90px;padding:6px;cursor:pointer;box-sizing:border-box}
+.fixed{border-color:#ff7a7a;background:#fffafb}
+.board{background:#333;color:white;text-align:center;padding:12px;border-radius:12px;margin-top:12px}
+.num{font-weight:bold}
+.name{font-size:14px}
+.small{font-size:11px;color:#555}
+
+/* 🖨️ 印刷・PDF保存用のスタイル設定 */
+@media print {
+  body { background: white; margin: 0; padding: 0; }
+  .card:nth-child(1), button, p { display: none !important; } /* 入力欄やボタンを非表示 */
+  .card { box-shadow: none; padding: 0; margin: 0; }
+  .grid { gap: 4px; }
+  .seat { border: 1px solid #999; min-height: 85px; }
+  .fixed { border: 2px solid #ff7a7a; }
+  .board { background: #333 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+<h2>生徒データ貼り付け</h2>
+<p class="small">※Excelのセルをそのままコピー＆ペーストするか、CSV形式（出席番号,氏名,学校,部活）で貼り付けてください。</p>
+<textarea id="csv" placeholder="1,山田太郎,〇〇中学,野球部&#10;2,佐藤花子,△△中学,テニス部"></textarea><br>
+<button onclick="loadCSV()">読み込み</button>
+<span id="count"></span>
+</div>
+
+<div class="card">
+<h2>座席</h2>
+<button onclick="randomize()">席替え実行</button>
+<button onclick="downloadPDF()">印刷 / PDF保存</button>
+<p class="small">※席をクリックすると特定の出席番号をその位置に固定できます。</p>
+<div id="grid" class="grid"></div>
+<div class="board">黒板</div>
+</div>
+
+<script>
+let students=[];
+let fixed={};
+let seats=new Array(42).fill(null);
+
+function buildGrid(){
+ const g=document.getElementById("grid");
+ g.innerHTML="";
+ for(let i=0;i<42;i++){
+   const d=document.createElement("div");
+   d.className="seat"+(fixed[i]?" fixed":"");
+   d.onclick=()=>setFixed(i);
+   d.id="seat"+i;
+   g.appendChild(d);
+ }
+ render();
+}
+
+function setFixed(i){
+ let current=fixed[i]||"";
+ let n=prompt("固定する出席番号",current);
+ if(n===null)return;
+ if(n===""){ 
+   delete fixed[i]; 
+   seats[i]=null;
+   buildGrid(); 
+   return;
+ }
+ fixed[i]=Number(n);
+ seats[i]=null; // 固定設定時は一度表示をクリア
+ buildGrid();
+}
+
+function loadCSV(){
+ const txt=document.getElementById("csv").value.trim();
+ if(!txt){
+   alert("データを入力してください。");
+   return;
+ }
+ const lines=txt.split(/\r?\n/);
+ students=[];
+ for(let i=0;i<lines.length;i++){
+   // カンマ、またはExcelコピペ（タブ）の両方に対応
+   const c=lines[i].split(/,|\t/);
+   if(c.length<2) continue;
+   
+   // 1行目が項目名（文字列）の場合はスキップ
+   if(i===0 && isNaN(Number(c[0].trim()))) continue;
+   
+   students.push({
+      num:c[0].trim(),
+      name:c[1] ? c[1].trim() : "",
+      school:c[2] ? c[2].trim() : "",
+      club:c[3] ? c[3].trim() : ""
+   });
+ }
+ document.getElementById("count").innerText=`${students.length}人読込`;
+ seats=new Array(42).fill(null); // データ読み込み時に座席をリセット
+ render();
+}
+
+function randomize(){
+ if(students.length===0){
+   alert("先に生徒データを読み込んでください。");
+   return;
+ }
+
+ seats=new Array(42).fill(null);
+ let remaining=[...students];
+
+ // 1. 固定席の割り当てとロック
+ Object.entries(fixed).forEach(([seat,num])=>{
+   const idx=remaining.findIndex(s=>String(s.num)===String(num));
+   if(idx>=0){
+      seats[Number(seat)]=remaining[idx];
+      remaining.splice(idx,1);
+   } else {
+      seats[Number(seat)]="LOCKED"; // データにない番号の席は他人が入らないようロック
+   }
+ });
+
+ // 2. 残りの生徒をシャッフル
+ for(let i=remaining.length-1;i>0;i--){
+   let j=Math.floor(Math.random()*(i+1));
+   [remaining[i],remaining[j]]=[remaining[j],remaining[i]];
+ }
+
+ // 3. 空いている座席の「位置（インデックス）」をリスト化してシャッフル（偏り防止）
+ let emptyIndices=[];
+ for(let i=0;i<42;i++){
+   if(!seats[i]) emptyIndices.push(i);
+ }
+ for(let i=emptyIndices.length-1;i>0;i--){
+   let j=Math.floor(Math.random()*(i+1));
+   [emptyIndices[i],emptyIndices[j]]=[emptyIndices[j],emptyIndices[i]];
+ }
+
+ // 4. シャッフルされた空き位置に、シャッフルされた生徒を順に配置
+ let p=0;
+ emptyIndices.forEach(idx => {
+   if(p<remaining.length){
+      seats[idx]=remaining[p++];
+   }
+ });
+
+ render();
+}
+
+function render(){
+ for(let i=0;i<42;i++){
+   const e=document.getElementById("seat"+i);
+   if(!e) continue;
+
+   let s=seats[i];
+   if(s && s !== "LOCKED"){
+      e.innerHTML=`
+      <div class=num>${s.num}</div>
+      <div class=name>${s.name}</div>
+      <div class=small>${s.school}</div>
+      <div class=small>${s.club}</div>`;
+   }else{
+      e.innerHTML=fixed[i]?`固定:${fixed[i]}`:"空席";
+   }
+   e.className="seat"+(fixed[i]?" fixed":"");
+ }
+}
+
+function downloadPDF(){
+  // ブラウザの印刷画面を呼び出します（送信先を「PDFとして保存」にすることで文字化けせず綺麗に保存可能）
+  window.print();
+}
+
+buildGrid();
+</script>
+</body>
+</html>
