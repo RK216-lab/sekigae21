@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>スマート座席替えアプリ</title>
+<title>席替えand座席表</title>
 <style>
 :root {
     --primary: #4f46e5;
@@ -144,11 +144,6 @@ button.secondary:hover {
     font-size: 26px;
     font-weight: bold;
     letter-spacing: 2px;
-}
-.date {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 14px;
     margin-bottom: 20px;
 }
 .instruction {
@@ -203,11 +198,6 @@ button.secondary:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
-/* 固定・選択状態のスタイル（固定席も通常席と同じ見た目に統一） */
-.seat.fixed-seat {
-    background-color: #fff;
-    border-color: var(--border-color);
-}
 .seat.selected {
     background-color: var(--accent-selected);
     border-color: var(--accent-selected-border);
@@ -229,7 +219,7 @@ button.secondary:hover {
     border-radius: 4px;
 }
 
-/* ピンボタン：普段は完全に隠し、マウスホバー時のみ先生が確認できるように表示 */
+/* ピンボタン：ホバー時のみ表示 */
 .pin-btn {
     background: transparent;
     border: none;
@@ -297,41 +287,55 @@ button.secondary:hover {
     }
 }
 
-/* 印刷用最適化スタイル */
+/* ==========================================
+   🖨️ 印刷用最適化スタイル（A4横に絶対収める設定）
+   ========================================== */
 @media print {
-    body {
+    @page {
+        size: A4 landscape;
+        margin: 10mm; /* 上下左右に1cmの余白 */
+    }
+    html, body {
+        width: 100%;
+        height: 100%;
         margin: 0;
         padding: 0;
         background: white;
         color: #000;
+        overflow: hidden;
     }
     .control, .sidebar, .instruction, .pin-btn {
         display: none !important;
+    }
+    .app-container {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+    .main-content {
+        width: 100%;
+        height: 100%;
     }
     .card {
         box-shadow: none;
         padding: 0;
         margin: 0;
         background: transparent;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
-    .app-container {
-        display: block;
+    .title {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 24px;
     }
-    .grid {
-        gap: 6px !important;
-    }
-    .seat {
-        border: 1px solid #334155 !important;
-        background: #fff !important;
-        min-height: 95px !important;
-        box-shadow: none !important;
-        transform: none !important;
-        page-break-inside: avoid;
-    }
-    .number {
-        background: transparent !important;
-        color: #000 !important;
-        padding: 0;
+    .layout-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        height: calc(100% - 40px); /* タイトル分の高さを引いて全体に広げる */
     }
     .board {
         border: 2px solid #000;
@@ -339,6 +343,41 @@ button.secondary:hover {
         color: #fff !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+        padding: 6px;
+        margin-bottom: 2px;
+        font-size: 14px;
+    }
+    .grid {
+        flex: 1;
+        gap: 6px !important;
+        height: 100%;
+    }
+    .seat {
+        border: 1px solid #334155 !important;
+        background: #fff !important;
+        min-height: 0 !important; /* 固定値を解除して1ページ内に縮むようにする */
+        height: 100%;
+        box-shadow: none !important;
+        transform: none !important;
+        page-break-inside: avoid;
+        padding: 4px 6px;
+    }
+    .number {
+        background: transparent !important;
+        color: #000 !important;
+        padding: 0;
+        font-size: 10px;
+    }
+    /* 縦幅が狭まったとき用の文字縮小調整 */
+    .name {
+        font-size: 14px;
+        margin: 0px 0 2px 0;
+    }
+    .yomi, .info {
+        font-size: 9px;
+    }
+    .empty {
+        font-size: 12px;
     }
 }
 </style>
@@ -402,11 +441,10 @@ button.secondary:hover {
     <div class="main-content">
         <div class="card">
             <div class="title">座席表</div>
-            <div class="date" id="today"></div>
             
             <div class="instruction control">
                 💡 <strong>操作方法:</strong> 2つの席を順にクリックすると<strong>中身を入れ替え</strong>られます。<br>
-                席の右上にマウスを乗せると 📍 が現れ、クリックで<strong>座席を固定</strong>（ピン留め📌）できます（通常時は隠れます）。
+                席の右上にマウスを乗せると 📍 が現れ、クリックすると<strong>画面内で直接固定番号を入力</strong>できます。
             </div>
             
             <div class="flex-btn-group control">
@@ -430,11 +468,7 @@ let rows = 6;
 let seats = [];
 let fixed = {}; // { seatIndex: studentNum }
 let selectedSeat = null;
-
-// 日付の自動設定
-document.getElementById("today").innerText = new Date().toLocaleDateString("ja-JP", {
-    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
-});
+let editingSeat = null; 
 
 // 入力モードの切り替え
 function toggleInputMode() {
@@ -449,8 +483,9 @@ function updateGridSize() {
     rows = parseInt(document.getElementById("rowsInput").value);
     
     seats = new Array(cols * rows).fill(null);
-    fixed = {};
+    fixed = {}; 
     selectedSeat = null;
+    editingSeat = null;
     buildGrid();
 }
 
@@ -465,13 +500,14 @@ function buildGrid() {
     const g = document.getElementById("grid");
     g.innerHTML = "";
     g.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    g.style.gridTemplateRows = `repeat(${rows}, 1fr)`; // 【重要】印刷時に縦幅を均等に割るため追加
     
     const totalSeats = cols * rows;
     for (let i = 0; i < totalSeats; i++) {
         const d = document.createElement("div");
         d.id = "seat" + i;
         d.onclick = (e) => {
-            if (e.target.classList.contains('pin-btn')) return;
+            if (e.target.classList.contains('pin-btn') || e.target.classList.contains('inline-input')) return;
             handleSeatClick(i);
         };
         g.appendChild(d);
@@ -479,8 +515,10 @@ function buildGrid() {
     render();
 }
 
-// 座席のクリックハンドラ（手動入れ替えロジック）
+// 座席のクリックハンドラ
 function handleSeatClick(i) {
+    if (editingSeat !== null) return; 
+    
     if (selectedSeat === null) {
         selectedSeat = i;
         render();
@@ -490,7 +528,6 @@ function handleSeatClick(i) {
             seats[selectedSeat] = seats[i];
             seats[i] = temp;
             
-            // 手動調整した席の固定は安全のため解除
             delete fixed[selectedSeat];
             delete fixed[i];
         }
@@ -499,23 +536,38 @@ function handleSeatClick(i) {
     }
 }
 
-// 個別座席の固定/解除トグル
+// 固定ボタン（📍）クリック時
 function toggleFixed(i, event) {
     event.stopPropagation();
-    
-    if (fixed[i]) {
-        delete fixed[i];
-        render();
-        return;
-    }
-    
+    selectedSeat = null; 
+
     if (seats[i]) {
-        fixed[i] = String(seats[i].num);
+        if (fixed[i]) {
+            delete fixed[i];
+        } else {
+            fixed[i] = String(seats[i].num);
+        }
+        render();
     } else {
-        let n = prompt("この位置に固定したい生徒の「出席番号」を入力してください。");
-        if (n === null || n.trim() === "") return;
-        fixed[i] = n.trim();
+        editingSeat = i;
+        render();
     }
+}
+
+// インライン入力された数値を保存
+function saveInlineFixed(i) {
+    if (editingSeat !== i) return; 
+    
+    const input = document.getElementById("edit-input-" + i);
+    if (input) {
+        const n = input.value.trim();
+        if (n === "") {
+            delete fixed[i];
+        } else {
+            fixed[i] = n;
+        }
+    }
+    editingSeat = null;
     render();
 }
 
@@ -550,7 +602,6 @@ function loadCSV() {
     
     document.getElementById("count").innerText = students.length + " 人読込済";
     seats = new Array(cols * rows).fill(null);
-    fixed = {};
     render();
 }
 
@@ -583,7 +634,6 @@ async function loadGAS() {
         
         document.getElementById("count").innerText = students.length + " 人読込済";
         seats = new Array(cols * rows).fill(null);
-        fixed = {};
         render();
     } catch (e) {
         alert("読み込みエラー: " + e.message);
@@ -658,11 +708,27 @@ function render() {
         const e = document.getElementById("seat" + i);
         if (!e) continue;
         
+        if (i === editingSeat) {
+            e.className = "seat selected";
+            e.innerHTML = `
+                <div class="seat-header">
+                    <span class="number" style="font-size:10px; color:var(--primary); background:none; padding:0;">番号入力</span>
+                </div>
+                <div style="padding: 10px 0 0 0;">
+                    <input type="text" id="edit-input-${i}" value="${fixed[i] || ''}" 
+                           inputmode="numeric" pattern="[0-9]*" placeholder="出席番号" class="inline-input control"
+                           style="width:100%; padding:6px; box-sizing:border-box; text-align:center; font-size:14px; border:2px solid var(--primary); border-radius:6px; background:#fff;"
+                           onblur="saveInlineFixed(${i})" 
+                           onkeydown="if(event.key==='Enter') this.blur()">
+                </div>
+            `;
+            continue;
+        }
+        
         const s = seats[i];
         const isFixed = fixed[i];
         
         e.className = "seat";
-        if (isFixed) e.classList.add("fixed-seat");
         if (selectedSeat === i) e.classList.add("selected");
         
         const pinText = isFixed ? "📌" : "📍";
@@ -679,7 +745,6 @@ function render() {
                 <div class="info">${s.club}</div>
             `;
         } else {
-            // 空席の場合（固定されていても通常でも見た目を統一）
             const displayNum = isFixed ? `${isFixed}` : "";
             e.innerHTML = `
                 <div class="seat-header">
@@ -688,6 +753,14 @@ function render() {
                 </div>
                 <div class="empty">空席</div>
             `;
+        }
+    }
+
+    if (editingSeat !== null) {
+        const input = document.getElementById("edit-input-" + editingSeat);
+        if (input) {
+            input.focus();
+            input.select();
         }
     }
 }
