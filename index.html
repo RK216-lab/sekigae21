@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>席替え&座席表生成</title>
+<title>席替えand座席表</title>
 <style>
 :root {
     --primary: #4f46e5;
     --primary-hover: #4338ca;
     --bg-main: #f1f5f9;
     --card-bg: #ffffff;
-    --border-color: #cbd5e1;
+    --border-color: #000000; /* 画像に合わせたハッキリした黒枠用 */
     --text-main: #0f172a;
-    --text-muted: #64748b;
+    --text-muted: #334155;
     --accent-selected: #e0f2fe;
     --accent-selected-border: #0ea5e9;
 }
@@ -30,7 +30,7 @@ body {
 .app-container {
     display: flex;
     gap: 20px;
-    max-width: 1400px;
+    max-width: 1500px;
     margin: 0 auto;
 }
 
@@ -48,6 +48,7 @@ body {
     padding: 20px;
     margin-bottom: 20px;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+    position: relative;
 }
 
 h2 {
@@ -81,10 +82,10 @@ label {
     font-weight: normal;
     cursor: pointer;
 }
-textarea, input[type=text], input[type=number], select {
+textarea, input[type=text], select {
     width: 100%;
     padding: 10px;
-    border: 1px solid var(--border-color);
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
     box-sizing: border-box;
     font-size: 14px;
@@ -98,7 +99,7 @@ textarea:focus, input:focus, select:focus {
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 textarea {
-    height: 120px;
+    height: 150px;
     resize: vertical;
 }
 
@@ -141,7 +142,7 @@ button.secondary:hover {
 
 .instruction {
     background: #f8fafc;
-    border: 1px dashed var(--border-color);
+    border: 1px dashed #cbd5e1;
     padding: 10px;
     border-radius: 8px;
     font-size: 13px;
@@ -150,117 +151,170 @@ button.secondary:hover {
     text-align: center;
 }
 
+/* 座席表の外枠構造 */
 .layout-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
 
+/* 画像に合わせた黄色い教卓・黒板スタイル */
 .board {
-    background: #1e293b;
-    color: white;
-    text-align:center;
-    padding: 12px;
-    border-radius: 8px;
+    background: #fff2cc; 
+    color: #000;
+    text-align: center;
+    padding: 10px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
     font-weight: bold;
+    font-size: 16px;
     letter-spacing: 10px;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
 }
 
 /* 座席グリッド */
 .grid {
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
+
+/* 🪟 画像の枠組みを完全再現した座席セル */
 .seat {
     background: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
     min-height: 110px;
-    padding: 8px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     cursor: pointer;
     position: relative;
-    transition: all 0.2s;
-}
-.seat:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    overflow: hidden;
 }
 
-.seat.selected {
-    background-color: var(--accent-selected);
-    border-color: var(--accent-selected-border);
-    box-shadow: 0 0 0 2px var(--accent-selected-border);
+/* 通常画面時のみのホバー効果 */
+@media screen {
+    .seat:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .seat.selected {
+        background-color: var(--accent-selected);
+        border-color: var(--accent-selected-border);
+    }
 }
 
-.seat-header {
+/* 上段：出席番号とふりがな（薄緑バー） */
+.seat-top {
+    background: #e6f4ea; 
+    border-bottom: 2px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 4px;
+    padding: 2px 6px;
 }
-.number {
+.seat-top .number {
+    font-size: 12px;
+    font-weight: bold;
+    color: #000;
+}
+.seat-top .yomi {
     font-size: 11px;
     font-weight: bold;
-    color: var(--text-muted);
-    background: #f1f5f9;
-    padding: 2px 6px;
-    border-radius: 4px;
+    color: #334155;
+    flex: 1;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 6px;
 }
 
-/* ピンボタン：ホバー時のみ表示 */
+/* 中段：名前（白背景に極太文字） */
+.seat-middle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    background: #fff;
+}
+.seat-middle .name {
+    font-size: 20px;
+    font-weight: 900; /* 極太 */
+    color: #000;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+/* 下段：中学と部活 */
+.seat-bottom {
+    border-top: 1px solid #cbd5e1;
+    background: #fafafa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #475569;
+}
+.seat-bottom .school, .seat-bottom .club {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 空席時の表示 */
+.empty {
+    color: #cbd5e1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+/* 操作用ピンボタン(ホバー時のみ右上に出現) */
 .pin-btn {
-    background: transparent;
-    border: none;
-    padding: 2px;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid #94a3b8;
+    border-radius: 4px;
+    padding: 1px 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 11px;
     opacity: 0;
-    transition: opacity 0.2s, transform 0.2s;
+    transition: opacity 0.2s;
+    z-index: 10;
     width: auto;
     margin: 0;
 }
 .seat:hover .pin-btn {
-    opacity: 0.6;
-}
-.pin-btn:hover {
-    opacity: 1 !important;
-    transform: scale(1.2);
+    opacity: 1;
 }
 
-.yomi {
-    font-size: 10px;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.name {
-    font-size: 16px;
+/* 全画面モード時用の終了ボタン */
+.exit-fullscreen-btn {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 99999;
+    width: auto;
+    background: #ef4444;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
     font-weight: bold;
-    margin: 2px 0 6px 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-.info {
-    font-size: 11px;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.exit-fullscreen-btn:hover {
+    background: #dc2626;
 }
-.empty {
-    color: #cbd5e1;
-    text-align: center;
-    margin: auto 0;
-    font-size: 14px;
-    font-weight: bold;
-}
+
 #count {
     display: block;
     text-align: center;
@@ -281,34 +335,80 @@ button.secondary:hover {
 }
 
 /* ==========================================
+   🖥️ 全画面表示（スクショ用）システムモード
+   ========================================== */
+#print-area:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+#print-area:fullscreen .control-in-print {
+    display: none !important;
+}
+#print-area:fullscreen .layout-wrapper {
+    flex: 1 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+#print-area:fullscreen .board {
+    flex: 0 0 auto !important;
+}
+#print-area:fullscreen .grid {
+    flex: 1 !important;
+    height: calc(100% - 50px) !important;
+    gap: 6px !important;
+}
+#print-area:fullscreen .seat {
+    min-height: 0 !important;
+    height: 100% !important;
+}
+
+/* ==========================================
    🖨️ 印刷用最適化スタイル（A4横に絶対収める設定）
    ========================================== */
 @media print {
     @page {
         size: A4 landscape;
-        margin: 8mm; /* 余白を程よく確保 */
+        margin: 6mm; /* 紙の余白を狭めてめいっぱい広げる */
     }
     html, body {
         width: 100% !important;
         height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
+        overflow: hidden !important;
         background: white !important;
         color: #000 !important;
-        overflow: hidden !important;
     }
     /* 不要なシステムUIを完全非表示 */
-    .control, .sidebar, .instruction, .pin-btn {
+    .control, .sidebar, .instruction, .control-in-print, .pin-btn, .exit-fullscreen-btn {
         display: none !important;
     }
-    .app-container, .main-content, .card {
+    .app-container, .main-content {
         display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    #print-area {
+        display: flex !important;
+        flex-direction: column !important;
         width: 100% !important;
         height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         box-shadow: none !important;
         background: transparent !important;
+        border: none !important;
     }
     /* 縦幅を100%使って自動伸縮させる */
     .layout-wrapper {
@@ -316,20 +416,16 @@ button.secondary:hover {
         flex-direction: column !important;
         width: 100% !important;
         height: 100% !important;
-        gap: 8px !important;
+        gap: 6px !important;
     }
-    /* 黒板を印刷時も高さを固定しつつ綺麗に収める */
+    /* 黒板の背景色（黄色）を印刷に強制反映 */
     .board {
         flex: 0 0 auto !important;
         height: 36px !important;
         line-height: 36px !important;
         padding: 0 !important;
         margin: 0 !important;
-        border: 2px solid #000 !important;
-        background: #1e293b !important;
-        color: #fff !important;
-        font-size: 16px !important;
-        font-weight: bold !important;
+        background: #fff2cc !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
@@ -340,57 +436,18 @@ button.secondary:hover {
         height: calc(100% - 44px) !important; 
         gap: 6px !important;
     }
-    /* 座席の枠を太くし、高さを100%追従 */
+    /* 座席の高さを100%追従させ、1ページ内に収める */
     .seat {
-        border: 2px solid #000 !important;
-        background: #fff !important;
         min-height: 0 !important;
         height: 100% !important;
         box-shadow: none !important;
         transform: none !important;
         page-break-inside: avoid;
-        padding: 6px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: space-between !important;
     }
-    .seat-header {
-        margin-bottom: 0 !important;
-    }
-    /* フォントサイズの拡大と、すべての情報を「太字」化 */
-    .number {
-        background: transparent !important;
-        color: #000 !important;
-        padding: 0 !important;
-        font-size: 12px !important;
-        font-weight: bold !important;
-    }
-    .yomi {
-        font-size: 11px !important;
-        font-weight: bold !important;
-        color: #334155 !important;
-    }
-    .name {
-        font-size: 20px !important; /* 大きくハッキリ */
-        font-weight: 900 !important; /* 極太 */
-        margin: 2px 0 !important;
-        color: #000 !important;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .info {
-        font-size: 12px !important;
-        font-weight: bold !important;
-        color: #475569 !important;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .empty {
-        font-size: 16px !important;
-        font-weight: bold !important;
-        color: #94a3b8 !important;
+    .seat-top {
+        background: #e6f4ea !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
 </style>
@@ -417,7 +474,13 @@ button.secondary:hover {
             
             <div id="text-wrap" class="form-group">
                 <label for="csv">CSV / タブ区切りテキスト</label>
-                <textarea id="csv" placeholder="1,やまだたろう,山田太郎,〇〇中学,野球部&#13;2,さとうはなこ,佐藤花子,△△中学,テニス部"></textarea>
+                <textarea id="csv" placeholder="番号,ふりがな,氏名,中学,部活">42,わたなべ まき,渡辺 麻希,清水袖師,化学班
+35,まつした こうゆう,松下 琥悠,静岡東豊田,男子バレーボール
+28,なべた みつき,鍋田 光葵,静岡城内,山岳
+21,たけひろ りょう,竹廣 涼,静岡竜爪,英語
+14,くどう りみ,工藤 莉美,藤枝高洲,化学班
+7,いしざき はるや,石﨑 遥也,清水第1,
+1,あかほり はると,赤堀 陽都,富士岩松,化学班</textarea>
             </div>
             
             <button onclick="loadData()">データを読み込む</button>
@@ -432,8 +495,8 @@ button.secondary:hover {
                     <select id="colsInput" onchange="updateGridSize()">
                         <option value="4">4 列</option>
                         <option value="5">5 列</option>
-                        <option value="6">6 列</option>
-                        <option value="7" selected>7 列</option>
+                        <option value="6" selected>6 列</option>
+                        <option value="7">7 列</option>
                         <option value="8">8 列</option>
                     </select>
                 </div>
@@ -441,8 +504,8 @@ button.secondary:hover {
                     <label>行数 (縦)</label>
                     <select id="rowsInput" onchange="updateGridSize()">
                         <option value="5">5 行</option>
-                        <option value="6" selected>6 行</option>
-                        <option value="7">7 行</option>
+                        <option value="6">6 行</option>
+                        <option value="7" selected>7 行</option>
                         <option value="8">8 行</option>
                     </select>
                 </div>
@@ -452,16 +515,18 @@ button.secondary:hover {
     </div>
 
     <div class="main-content">
-        <div class="card">
+        <div id="print-area" class="card">
+            <button class="exit-fullscreen-btn" id="exitBtn" style="display:none;" onclick="toggleFullscreen()">❌ 全画面表示を終了</button>
             
-            <div class="instruction control">
-                💡 <strong>操作方法:</strong> 2つの席を順にクリックすると<strong>中身を入れ替え</strong>られます。<br>
-                席の右上にマウスを乗せると 📍 が現れ、クリックすると<strong>画面内で直接固定番号を入力</strong>できます。
+            <div class="instruction control-in-print">
+                💡 <strong>操作方法:</strong> 2つの席を順にクリックすると中身を入れ替えられます。<br>
+                席の右上にマウスを乗せると現れるボタンから、特定の席に座る生徒を固定設定できます。
             </div>
             
-            <div class="flex-btn-group control">
+            <div class="flex-btn-group control-in-print">
                 <button onclick="randomize()">🎲 席替えを実行</button>
-                <button class="secondary" onclick="window.print()">🖨️ 印刷 / PDFとして保存</button>
+                <button class="secondary" onclick="toggleFullscreen()">🖥️ 全画面表示 (スクショ用)</button>
+                <button class="secondary" onclick="window.print()">🖨️ A4横で直接印刷</button>
             </div>
             
             <div class="layout-wrapper">
@@ -475,12 +540,34 @@ button.secondary:hover {
 
 <script>
 let students = [];
-let cols = 7;
-let rows = 6;
+let cols = 6;  /* デフォルトを画像と同じ6列に変更 */
+let rows = 7;  /* デフォルトを画像と同じ7行に変更 */
 let seats = [];
-let fixed = {}; // { seatIndex: studentNum }
+let fixed = {}; 
 let selectedSeat = null;
 let editingSeat = null; 
+
+// フルスクリーンの状態監視（ESCキーなどで抜け出された時の対策）
+document.addEventListener('fullscreenchange', () => {
+    const exitBtn = document.getElementById("exitBtn");
+    if (document.fullscreenElement) {
+        exitBtn.style.display = "block";
+    } else {
+        exitBtn.style.display = "none";
+    }
+});
+
+// 全画面表示モードのトグル機能
+function toggleFullscreen() {
+    const printArea = document.getElementById("print-area");
+    if (!document.fullscreenElement) {
+        printArea.requestFullscreen().catch(err => {
+            alert(`全画面表示の起動に失敗しました: ${err.message}`);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
 
 // 入力モードの切り替え
 function toggleInputMode() {
@@ -548,7 +635,7 @@ function handleSeatClick(i) {
     }
 }
 
-// 固定ボタン（📍）クリック時
+// 固定ボタンクリック時
 function toggleFixed(i, event) {
     event.stopPropagation();
     selectedSeat = null; 
@@ -723,16 +810,17 @@ function render() {
         if (i === editingSeat) {
             e.className = "seat selected";
             e.innerHTML = `
-                <div class="seat-header">
-                    <span class="number" style="font-size:10px; color:var(--primary); background:none; padding:0;">番号入力</span>
+                <div class="seat-top">
+                    <span class="number" style="color:var(--primary);">番号入力</span>
                 </div>
-                <div style="padding: 10px 0 0 0;">
+                <div style="padding: 12px; text-align:center; background:#fff;">
                     <input type="text" id="edit-input-${i}" value="${fixed[i] || ''}" 
-                           inputmode="numeric" pattern="[0-9]*" placeholder="出席番号" class="inline-input control"
-                           style="width:100%; padding:6px; box-sizing:border-box; text-align:center; font-size:14px; border:2px solid var(--primary); border-radius:6px; background:#fff;"
+                           inputmode="numeric" pattern="[0-9]*" placeholder="出席番号" class="inline-input"
+                           style="width:90%; padding:4px; box-sizing:border-box; text-align:center; font-size:12px; border:2px solid var(--primary); border-radius:4px;"
                            onblur="saveInlineFixed(${i})" 
                            onkeydown="if(event.key==='Enter') this.blur()">
                 </div>
+                <div class="seat-bottom"><span></span><span></span></div>
             `;
             continue;
         }
@@ -747,23 +835,33 @@ function render() {
         
         if (s) {
             e.innerHTML = `
-                <div class="seat-header">
+                <div class="seat-top">
                     <span class="number">${s.num}</span>
-                    <button class="pin-btn control" onclick="toggleFixed(${i}, event)" title="座席を固定">${pinText}</button>
+                    <span class="yomi">${s.yomi}</span>
                 </div>
-                <div class="yomi">${s.yomi}</div>
-                <div class="name">${s.name}</div>
-                <div class="info">${s.school}</div>
-                <div class="info">${s.club}</div>
+                <div class="seat-middle">
+                    <div class="name">${s.name}</div>
+                </div>
+                <div class="seat-bottom">
+                    <span class="school">${s.school}</span>
+                    <span class="club">${s.club}</span>
+                </div>
+                <button class="pin-btn control" onclick="toggleFixed(${i}, event)" title="座席を固定">${pinText}</button>
             `;
         } else {
             const displayNum = isFixed ? `${isFixed}` : "";
             e.innerHTML = `
-                <div class="seat-header">
-                    <span class="number" style="${isFixed ? '' : 'display:none;'}">${displayNum}</span>
-                    <button class="pin-btn control" onclick="toggleFixed(${i}, event)" title="座席を固定">${pinText}</button>
+                <div class="seat-top">
+                    <span class="number" style="${isFixed ? '' : 'visibility:hidden;'}">${displayNum}</span>
+                    <span class="yomi"></span>
                 </div>
-                <div class="empty">空席</div>
+                <div class="seat-middle">
+                    <div class="empty">空席</div>
+                </div>
+                <div class="seat-bottom">
+                    <span></span><span></span>
+                </div>
+                <button class="pin-btn control" onclick="toggleFixed(${i}, event)" title="座席を固定">${pinText}</button>
             `;
         }
     }
