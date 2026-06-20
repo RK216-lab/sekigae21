@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>席替えand座席表</title>
+<title>席替え&座席表生成</title>
 <style>
 :root {
     --primary: #4f46e5;
@@ -133,19 +133,12 @@ button.secondary:hover {
 .flex-btn-group {
     display: flex;
     gap: 8px;
+    margin-bottom: 16px;
 }
 .flex-btn-group button {
     flex: 1;
 }
 
-/* 座席表表示エリア */
-.title {
-    text-align: center;
-    font-size: 26px;
-    font-weight: bold;
-    letter-spacing: 2px;
-    margin-bottom: 20px;
-}
 .instruction {
     background: #f8fafc;
     border: 1px dashed var(--border-color);
@@ -293,91 +286,111 @@ button.secondary:hover {
 @media print {
     @page {
         size: A4 landscape;
-        margin: 10mm; /* 上下左右に1cmの余白 */
+        margin: 8mm; /* 余白を程よく確保 */
     }
     html, body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        background: white;
-        color: #000;
-        overflow: hidden;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        color: #000 !important;
+        overflow: hidden !important;
     }
+    /* 不要なシステムUIを完全非表示 */
     .control, .sidebar, .instruction, .pin-btn {
         display: none !important;
     }
-    .app-container {
-        display: block;
-        width: 100%;
-        height: 100%;
+    .app-container, .main-content, .card {
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
     }
-    .main-content {
-        width: 100%;
-        height: 100%;
-    }
-    .card {
-        box-shadow: none;
-        padding: 0;
-        margin: 0;
-        background: transparent;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-    .title {
-        margin-top: 0;
-        margin-bottom: 8px;
-        font-size: 24px;
-    }
+    /* 縦幅を100%使って自動伸縮させる */
     .layout-wrapper {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        height: calc(100% - 40px); /* タイトル分の高さを引いて全体に広げる */
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: 100% !important;
+        gap: 8px !important;
     }
+    /* 黒板を印刷時も高さを固定しつつ綺麗に収める */
     .board {
-        border: 2px solid #000;
+        flex: 0 0 auto !important;
+        height: 36px !important;
+        line-height: 36px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: 2px solid #000 !important;
         background: #1e293b !important;
         color: #fff !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
-        padding: 6px;
-        margin-bottom: 2px;
-        font-size: 14px;
     }
+    /* 座席グリッドを黒板の残りの高さ全体に引き伸ばす */
     .grid {
-        flex: 1;
+        flex: 1 1 auto !important;
+        display: grid !important;
+        height: calc(100% - 44px) !important; 
         gap: 6px !important;
-        height: 100%;
     }
+    /* 座席の枠を太くし、高さを100%追従 */
     .seat {
-        border: 1px solid #334155 !important;
+        border: 2px solid #000 !important;
         background: #fff !important;
-        min-height: 0 !important; /* 固定値を解除して1ページ内に縮むようにする */
-        height: 100%;
+        min-height: 0 !important;
+        height: 100% !important;
         box-shadow: none !important;
         transform: none !important;
         page-break-inside: avoid;
-        padding: 4px 6px;
+        padding: 6px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
     }
+    .seat-header {
+        margin-bottom: 0 !important;
+    }
+    /* フォントサイズの拡大と、すべての情報を「太字」化 */
     .number {
         background: transparent !important;
         color: #000 !important;
-        padding: 0;
-        font-size: 10px;
+        padding: 0 !important;
+        font-size: 12px !important;
+        font-weight: bold !important;
     }
-    /* 縦幅が狭まったとき用の文字縮小調整 */
+    .yomi {
+        font-size: 11px !important;
+        font-weight: bold !important;
+        color: #334155 !important;
+    }
     .name {
-        font-size: 14px;
-        margin: 0px 0 2px 0;
+        font-size: 20px !important; /* 大きくハッキリ */
+        font-weight: 900 !important; /* 極太 */
+        margin: 2px 0 !important;
+        color: #000 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-    .yomi, .info {
-        font-size: 9px;
+    .info {
+        font-size: 12px !important;
+        font-weight: bold !important;
+        color: #475569 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .empty {
-        font-size: 12px;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        color: #94a3b8 !important;
     }
 }
 </style>
@@ -440,7 +453,6 @@ button.secondary:hover {
 
     <div class="main-content">
         <div class="card">
-            <div class="title">座席表</div>
             
             <div class="instruction control">
                 💡 <strong>操作方法:</strong> 2つの席を順にクリックすると<strong>中身を入れ替え</strong>られます。<br>
@@ -500,7 +512,7 @@ function buildGrid() {
     const g = document.getElementById("grid");
     g.innerHTML = "";
     g.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    g.style.gridTemplateRows = `repeat(${rows}, 1fr)`; // 【重要】印刷時に縦幅を均等に割るため追加
+    g.style.gridTemplateRows = `repeat(${rows}, 1fr)`; 
     
     const totalSeats = cols * rows;
     for (let i = 0; i < totalSeats; i++) {
