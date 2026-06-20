@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>席替えand座席表</title>
+<title>スマート座席替えアプリ</title>
 <style>
 :root {
     --primary: #4f46e5;
@@ -131,13 +131,16 @@ button.secondary:hover {
     background: #cbd5e1;
 }
 
+/* ボタンを下に配置するためのグループ設定 */
 .flex-btn-group {
     display: flex;
     gap: 8px;
-    margin-bottom: 16px;
+    margin-top: 16px;
+    margin-bottom: 0;
 }
 .flex-btn-group button {
     flex: 1;
+    margin-bottom: 0;
 }
 
 .instruction {
@@ -297,26 +300,6 @@ button.secondary:hover {
     opacity: 1;
 }
 
-/* ❌全画面モード解除ボタン */
-.exit-fullscreen-btn {
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    z-index: 999999;
-    width: auto;
-    background: #ef4444;
-    color: white;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    border: none;
-    cursor: pointer;
-}
-.exit-fullscreen-btn:hover {
-    background: #dc2626;
-}
-
 #count {
     display: block;
     text-align: center;
@@ -337,7 +320,7 @@ button.secondary:hover {
 }
 
 /* ==========================================
-   🖥️ どんな環境でも100%動く「擬似全画面モード」CSS
+   🖥️ 100%動く「真下にボタンが来る全画面モード」CSS
    ========================================== */
 #print-area.fullscreen-mode {
     position: fixed !important;
@@ -354,13 +337,12 @@ button.secondary:hover {
     flex-direction: column !important;
     border-radius: 0 !important;
 }
-#print-area.fullscreen-mode .control-in-print,
 #print-area.fullscreen-mode .instruction {
     display: none !important;
 }
 #print-area.fullscreen-mode .layout-wrapper {
     flex: 1 !important;
-    height: 100% !important;
+    height: calc(100% - 60px) !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 8px !important;
@@ -377,20 +359,22 @@ button.secondary:hover {
     min-height: 0 !important;
     height: 100% !important;
 }
+#print-area.fullscreen-mode .flex-btn-group {
+    flex: 0 0 auto !important;
+    margin-top: 12px !important;
+}
 
 /* ==========================================
-   🖨️ 印刷用最適化スタイル（A4横のミリ単位に強制固定）
+   🖨️ 印刷用最適化スタイル（A4横に強制固定）
    ========================================== */
 @media print {
     @page {
         size: A4 landscape;
         margin: 6mm; 
     }
-    /* 画面上の余計なものをすべて物理的に非表示 */
     body * {
         visibility: hidden;
     }
-    /* 座席エリアとその子要素だけを強制表示 */
     #print-area, #print-area * {
         visibility: visible;
     }
@@ -398,8 +382,8 @@ button.secondary:hover {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
-        width: 285mm !important; /* A4横の限界サイズ */
-        height: 195mm !important; /* A4縦の限界サイズ */
+        width: 285mm !important; 
+        height: 195mm !important; 
         box-sizing: border-box !important;
         display: flex !important;
         flex-direction: column !important;
@@ -409,7 +393,7 @@ button.secondary:hover {
         background: #ffffff !important;
         box-shadow: none !important;
     }
-    .control, .sidebar, .instruction, .control-in-print, .pin-btn, .exit-fullscreen-btn {
+    .control, .sidebar, .instruction, .control-in-print, .pin-btn {
         display: none !important;
     }
     .layout-wrapper {
@@ -507,17 +491,10 @@ button.secondary:hover {
 
     <div class="main-content">
         <div id="print-area" class="card">
-            <button class="exit-fullscreen-btn" id="exitBtn" style="display:none;" onclick="toggleFullscreen()">❌ 全画面表示を終了</button>
             
             <div class="instruction control-in-print">
                 💡 <strong>操作方法:</strong> 2つの席を順にクリックすると中身を入れ替えられます。<br>
                 席の右上にマウスを乗せると現れるボタンから、特定の席に座る生徒を固定設定できます。
-            </div>
-            
-            <div class="flex-btn-group control-in-print">
-                <button onclick="randomize()">🎲 席替えを実行</button>
-                <button class="secondary" onclick="toggleFullscreen()">🖥️ 全画面表示 (スクショ用)</button>
-                <button class="secondary" onclick="window.print()">🖨️ A4横で直接印刷</button>
             </div>
             
             <div class="layout-wrapper">
@@ -525,6 +502,13 @@ button.secondary:hover {
                 
                 <div id="grid" class="grid"></div>
             </div>
+
+            <div class="flex-btn-group control-in-print">
+                <button onclick="randomize()">🎲 席替えを実行</button>
+                <button id="fullscreenBtn" class="secondary" onclick="toggleFullscreen()">🖥️ 全画面表示 (スクショ用)</button>
+                <button class="secondary" onclick="window.print()">🖨️ A4横で直接印刷</button>
+            </div>
+
         </div>
     </div>
 </div>
@@ -538,28 +522,30 @@ let fixed = {};
 let selectedSeat = null;
 let editingSeat = null; 
 
-// 100%確実に動く「擬似全画面表示」の切り替え
+// ボタンを下に残したまま切り替える全画面処理
 function toggleFullscreen() {
     const printArea = document.getElementById("print-area");
-    const exitBtn = document.getElementById("exitBtn");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
     
     printArea.classList.toggle("fullscreen-mode");
     
     if (printArea.classList.contains("fullscreen-mode")) {
-        exitBtn.style.display = "block";
+        fullscreenBtn.innerHTML = "❌ 通常画面に戻る";
+        fullscreenBtn.style.background = "#ef4444";
+        fullscreenBtn.style.color = "#ffffff";
     } else {
-        exitBtn.style.display = "none";
+        fullscreenBtn.innerHTML = "🖥️ 全画面表示 (スクショ用)";
+        fullscreenBtn.style.background = "#e2e8f0";
+        fullscreenBtn.style.color = "var(--text-main)";
     }
 }
 
-// 入力モードの切り替え
 function toggleInputMode() {
     const mode = document.querySelector('input[name="mode"]:checked').value;
     document.getElementById("text-wrap").style.display = mode === "text" ? "block" : "none";
     document.getElementById("gas-wrap").style.display = mode === "gas" ? "block" : "none";
 }
 
-// グリッドサイズ(行列)の変更
 function updateGridSize() {
     cols = parseInt(document.getElementById("colsInput").value);
     rows = parseInt(document.getElementById("rowsInput").value);
@@ -571,13 +557,11 @@ function updateGridSize() {
     buildGrid();
 }
 
-// 黒板の位置反転
 function toggleBoardPosition() {
     const board = document.getElementById("board");
     board.style.order = board.style.order === "-1" ? "1" : "-1";
 }
 
-// グリッドのHTML生成
 function buildGrid() {
     const g = document.getElementById("grid");
     g.innerHTML = "";
@@ -597,7 +581,6 @@ function buildGrid() {
     render();
 }
 
-// 座席のクリックハンドラ
 function handleSeatClick(i) {
     if (editingSeat !== null) return; 
     
@@ -618,7 +601,6 @@ function handleSeatClick(i) {
     }
 }
 
-// 固定ボタンクリック時
 function toggleFixed(i, event) {
     event.stopPropagation();
     selectedSeat = null; 
@@ -636,7 +618,6 @@ function toggleFixed(i, event) {
     }
 }
 
-// インライン入力された数値を保存
 function saveInlineFixed(i) {
     if (editingSeat !== i) return; 
     
@@ -653,7 +634,6 @@ function saveInlineFixed(i) {
     render();
 }
 
-// CSV/テキスト読み込み
 function loadCSV() {
     const txt = document.getElementById("csv").value.trim();
     if (!txt) {
@@ -687,7 +667,6 @@ function loadCSV() {
     render();
 }
 
-// GAS読み込み
 async function loadGAS() {
     const url = document.getElementById("gasurl").value.trim();
     if (!url) {
@@ -731,7 +710,6 @@ async function loadData() {
     }
 }
 
-// 席替え実行ロジック
 function randomize() {
     if (students.length === 0) {
         alert("先にデータを読み込んでください");
@@ -747,7 +725,6 @@ function randomize() {
     seats = new Array(totalSeats).fill(null);
     let remaining = [...students];
     
-    // 1. 固定座席の割り当て
     Object.entries(fixed).forEach(([seatIdx, num]) => {
         const idx = remaining.findIndex(s => String(s.num) === String(num));
         if (idx >= 0) {
@@ -756,13 +733,11 @@ function randomize() {
         }
     });
     
-    // 2. 残り生徒をシャッフル
     for (let i = remaining.length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1));
         [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
     }
     
-    // 3. 空き座席インデックスのシャッフル
     let emptyIndices = [];
     for (let i = 0; i < totalSeats; i++) {
         if (!seats[i]) emptyIndices.push(i);
@@ -772,7 +747,6 @@ function randomize() {
         [emptyIndices[i], emptyIndices[j]] = [emptyIndices[j], emptyIndices[i]];
     }
     
-    // 4. 配置
     let p = 0;
     emptyIndices.forEach(i => {
         if (p < remaining.length) {
@@ -783,7 +757,6 @@ function randomize() {
     render();
 }
 
-// 座席表の再描画
 function render() {
     const totalSeats = cols * rows;
     for (let i = 0; i < totalSeats; i++) {
